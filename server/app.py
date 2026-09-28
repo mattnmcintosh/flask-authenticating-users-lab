@@ -20,7 +20,7 @@ api = Api(app)
 
 class ClearSession(Resource):
 
-    def delete(self):
+    def get(self):
     
         session['page_views'] = None
         session['user_id'] = None
@@ -42,15 +42,48 @@ class ShowArticle(Resource):
         if session['page_views'] <= 3:
 
             article = Article.query.filter(Article.id == id).first()
-            article_json = ArticlesSchema.dump(article)
+            article_json = ArticlesSchema().dump(article)
 
             return make_response(article_json, 200)
 
         return {'message': 'Maximum pageview limit reached'}, 401
 
+class Login(Resource):
+
+    def post(self):
+        user = User.query.filter(
+            User.username == request.get_json()['username']
+        ).first()
+
+        if user:
+            session['user_id'] = user.id
+            user_json = UserSchema().dump(user)
+            return make_response(user_json, 200)
+        else:
+            return {'message': 'Invalid login'}, 401
+
+class Logout(Resource):
+
+    def delete(self):
+        session['user_id'] = None
+        return make_response("", 204)
+
+class CheckSession(Resource):
+
+    def get(self):
+        user = User.query.filter(User.id == session.get('user_id')).first()
+        if user:
+            user_json = UserSchema().dump(user)
+            return make_response(user_json, 200)
+        else:
+            return {}, 401
+
 api.add_resource(ClearSession, '/clear')
 api.add_resource(IndexArticle, '/articles')
 api.add_resource(ShowArticle, '/articles/<int:id>')
+api.add_resource(Login, '/login')
+api.add_resource(Logout, '/logout')
+api.add_resource(CheckSession, '/check_session')
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
